@@ -1,5 +1,5 @@
 if (process.env.NODE_ENV !== "production") {
-    require('dotenv').config();
+    require("dotenv").config();
 }
 
 const express = require("express");
@@ -8,73 +8,78 @@ const mongoose = require("mongoose");
 const path = require("path");
 const methodOverride = require("method-override");
 const ejsMate = require("ejs-mate");
-const ExpressError = require("./utils/expressError.js");
+const ExpressError = require("./utils/expressError");
 const session = require("express-session");
 const flash = require("connect-flash");
 const passport = require("passport");
 const LocalStrategy = require("passport-local");
+const User = require("./models/user");
 const MongoStore = require("connect-mongo");
 
-const User = require("./models/user.js");
-const listingsRouter = require("./routes/listing.js");
-const reviewsRouter = require("./routes/review.js");
-const userRouter = require("./routes/user.js");
-
-const dbUrl = process.env.MONGO_URL || "mongodb+srv://vishalthombre42:Bbh8I7PpjizEir0U@dataset1.61vvfpx.mongodb.net/?retryWrites=true&w=majority&appName=Dataset1";
+const listingsRouter = require("./routes/listing");
+const reviewsRouter = require("./routes/review");
+const userRouter = require("./routes/user");
 
 // MongoDB connection
+const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1:27017/wanderlust";
+
 main().then(() => {
     console.log("✅ Connected to MongoDB");
 }).catch((err) => {
-    console.error("❌ MongoDB Connection Error:", err);
+    console.error("❌ MongoDB connection error:", err);
 });
+
 async function main() {
     await mongoose.connect(dbUrl);
 }
 
-// View engine setup
-app.engine("ejs", ejsMate);
+// Set up EJS
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
+app.engine("ejs", ejsMate);
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride("_method"));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "/public")));
 
-// Mongo session store
+// Session store using MongoDB
 const store = MongoStore.create({
     mongoUrl: dbUrl,
-    touchAfter: 24 * 3600 // time period in seconds (24h)
+    crypto: {
+        secret: process.env.SECRET || "somerandomsupersecret",
+    },
+    touchAfter: 24 * 3600, // time period in seconds
 });
 
 store.on("error", function (e) {
-    console.log("SESSION STORE ERROR:", e);
+    console.log("SESSION STORE ERROR", e);
 });
 
 const sessionOptions = {
     store,
-    secret: process.env.SECRET || "mysupersecretcode",
+    name: "session", // Optional: custom session cookie name
+    secret: process.env.SECRET || "somerandomsupersecret",
     resave: false,
     saveUninitialized: true,
     cookie: {
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 1 week
-        maxAge: 7 * 24 * 60 * 60 * 1000,
         httpOnly: true,
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 1 week
+        maxAge: 1000 * 60 * 60 * 24 * 7,
     },
 };
 
 app.use(session(sessionOptions));
 app.use(flash());
 
-// Passport Auth
+// Passport
 app.use(passport.initialize());
 app.use(passport.session());
 passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// Flash & current user middleware
+// Flash & current user
 app.use((req, res, next) => {
     res.locals.success = req.flash("success");
     res.locals.error = req.flash("error");
@@ -82,25 +87,25 @@ app.use((req, res, next) => {
     next();
 });
 
-// Routers
+// Routes
 app.use("/listings", listingsRouter);
 app.use("/listings/:id/reviews", reviewsRouter);
 app.use("/", userRouter);
 
-// Catch-all
+// 404 handler
 app.all("*", (req, res, next) => {
-    next(new ExpressError(404, "Page not Found!"));
+    next(new ExpressError(404, "Page Not Found"));
 });
 
-// Error handler
+// Global error handler
 app.use((err, req, res, next) => {
     const { statusCode = 500 } = err;
     if (!err.message) err.message = "Something went wrong!";
-    res.status(statusCode).render("error.ejs", { err });
+    res.status(statusCode).render("error", { err });
 });
 
-// Start server
+// Server start
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
-    console.log(`🚀 Server is listening on port ${port}`);
+    console.log(`🚀 Server running on port ${port}`);
 });
