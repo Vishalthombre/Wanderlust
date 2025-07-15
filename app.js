@@ -21,7 +21,7 @@ const reviewsRouter = require("./routes/review");
 const userRouter = require("./routes/user");
 
 // MongoDB connection
-const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1:27017/wanderlust";
+const dbUrl = process.env.MONGO_URL || "mongodb+srv://vishalthombre42:Bbh8I7PpjizEir0U@dataset1.61vvfpx.mongodb.net/?retryWrites=true&w=majority&appName=Dataset1      ";
 
 main().then(() => {
     console.log("✅ Connected to MongoDB");
